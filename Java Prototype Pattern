@@ -9,39 +9,63 @@ class Order implements OrderPrototype {
     private String clientName;
     private List<String> products;
     private String deliveryAddress;
+    private String deliveryType;
     private double discount;
     private String paymentMethod;
+    private String paymentStatus;
+    private String contactPhone;
 
-    public Order(String clientName, List<String> products, String deliveryAddress, double discount, String paymentMethod) {
+    public Order(String clientName, List<String> products, String deliveryAddress, 
+                 String deliveryType, double discount, String paymentMethod, 
+                 String paymentStatus, String contactPhone) {
         this.clientName = clientName;
         this.products = new ArrayList<>(products);
         this.deliveryAddress = deliveryAddress;
+        this.deliveryType = deliveryType;
         this.discount = discount;
         this.paymentMethod = paymentMethod;
+        this.paymentStatus = paymentStatus;
+        this.contactPhone = contactPhone;
     }
 
     @Override
     public Order clone() {
-        return new Order(this.clientName, this.products, this.deliveryAddress, this.discount, this.paymentMethod);
+        return new Order(this.clientName, this.products, this.deliveryAddress, 
+                         this.deliveryType, this.discount, this.paymentMethod, 
+                         this.paymentStatus, this.contactPhone);
     }
 
     public void setDeliveryAddress(String deliveryAddress) {
         this.deliveryAddress = deliveryAddress;
     }
 
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
     public void showInfo() {
-        System.out.println("Заказ для: " + clientName + " | Адрес: " + deliveryAddress);
+        System.out.println("==========================================");
+        System.out.println("КЛИЕНТ: " + clientName + " | ТЕЛ: " + contactPhone);
+        System.out.println("ТОВАРЫ: " + products);
+        System.out.println("ДОСТАВКА: " + deliveryType + " | АДРЕС: " + deliveryAddress);
+        System.out.println("ОПЛАТА: " + paymentMethod + " | СТАТУС: " + paymentStatus);
+        System.out.println("СКИДКА: " + discount + "%");
     }
 }
 
 public class Main {
     public static void main(String[] args) {
-        Order prototype = new Order("CorpClient", List.of("Item1"), "Address A", 10.0, "Invoice");
-        
-        Order newOrder = prototype.clone();
-        newOrder.setDeliveryAddress("Address B");
+        List<String> items = List.of("Сервер Dell R740", "Источник ИБП", "Стойка 42U");
+        Order corporateTemplate = new Order(
+            "Global Tech", 
+            items, 
+            "Склад А", 
+            "Курьерская служба", 
+            12.5, 
+            "Безналичный расчет", 
+            "Ожидает оплаты", 
+            "+7-777-123-45-67"
+        );
 
-        prototype.showInfo();
-        newOrder.showInfo();
-    }
-}
+        Order repeatOrder = corporateTemplate.clone();
+        repeatOrder.setDeliveryAddress("Ф
