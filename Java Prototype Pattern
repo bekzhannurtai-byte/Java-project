@@ -38,7 +38,6 @@ public class Main {
     public static void main(String[] args) {
         Order prototype = new Order("CorpClient", List.of("Item1"), "Address A", 10.0, "Invoice");
         
-        // Аргументация в коде: создание копии вместо создания с нуля
         Order newOrder = prototype.clone();
         newOrder.setDeliveryAddress("Address B");
 
