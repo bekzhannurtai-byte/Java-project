@@ -1,0 +1,49 @@
+import java.util.ArrayList;
+import java.util.List;
+
+interface OrderPrototype {
+    OrderPrototype clone();
+}
+
+class Order implements OrderPrototype {
+    private String clientName;
+    private List<String> products;
+    private String deliveryAddress;
+    private double discount;
+    private String paymentMethod;
+
+    public Order(String clientName, List<String> products, String deliveryAddress, double discount, String paymentMethod) {
+        this.clientName = clientName;
+        this.products = new ArrayList<>(products);
+        this.deliveryAddress = deliveryAddress;
+        this.discount = discount;
+        this.paymentMethod = paymentMethod;
+    }
+
+    @Override
+    public Order clone() {
+        return new Order(this.clientName, this.products, this.deliveryAddress, this.discount, this.paymentMethod);
+    }
+
+    public void setDeliveryAddress(String deliveryAddress) {
+        this.deliveryAddress = deliveryAddress;
+    }
+
+    public void showInfo() {
+        System.out.println("Заказ для: " + clientName + " | Товары: " + products + 
+                           " | Адрес: " + deliveryAddress + " | Скидка: " + discount + "%");
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> items = List.of("Ноутбук", "Мышь");
+        Order prototypeOrder = new Order("Корпорация", items, "Офис 1", 10.0, "Счет");
+
+        Order newOrder = prototypeOrder.clone();
+        newOrder.setDeliveryAddress("Офис 2 (новый филиал)");
+
+        prototypeOrder.showInfo();
+        newOrder.showInfo();
+    }
+}
