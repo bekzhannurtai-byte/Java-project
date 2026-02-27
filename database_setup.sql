@@ -3,8 +3,8 @@ CREATE ROLE med_admin;
 CREATE ROLE doctor_role;
 
 -- Рөлдерге рұқсаттар беру
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO med_admin;
-GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA public TO doctor_role;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin_role;
+GRANT SELECT, INSERT ON patient, appointment TO doctor_role;
 
 -- Пайдаланушыларды құру және рөлдерді тағайындау
 CREATE USER admin_01 WITH PASSWORD 'AdminPass123';
@@ -16,39 +16,33 @@ GRANT doctor_role TO doc_aslan;
 -- 3. КЕСТЕЛЕР ҚҰРУ (Физикалық модель)
 
 -- Пациенттер кестесі
-CREATE TABLE patients (
-    patient_id INT PRIMARY KEY,
-    full_name VARCHAR(200) NOT NULL,
-    iin VARCHAR(12) UNIQUE NOT NULL,
-    birth_date DATE CHECK (birth_date < CURRENT_DATE),
-    address VARCHAR(300) DEFAULT 'Мекенжай көрсетілмеген'
+CREATE TABLE patient (
+    patient_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    phone VARCHAR(20) UNIQUE
 );
-
 -- Сақтандыру полистері (1:1 байланысы)
 CREATE TABLE insurance (
-    policy_id INT PRIMARY KEY,
-    policy_num VARCHAR(50) UNIQUE NOT NULL,
-    patient_id INT UNIQUE REFERENCES patients(patient_id),
-    amount DECIMAL CHECK (amount > 0)
+    insurance_id SERIAL PRIMARY KEY,
+    patient_id INT REFERENCES patient(patient_id),
+    policy_number VARCHAR(50) UNIQUE NOT NULL
 );
 
 -- Дәрігерлер кестесі
-CREATE TABLE doctors (
-    doctor_id INT PRIMARY KEY,
-    doctor_name VARCHAR(200) NOT NULL,
-    specialty VARCHAR(100) NOT NULL
+CREATE TABLE doctor (
+    doctor_id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    specialization VARCHAR(100)
 );
 
--- Медициналық қызметтер кестесі (M:N байланысы)
-CREATE TABLE services (
-    service_id INT PRIMARY KEY,
-    patient_id INT REFERENCES patients(patient_id),
-    doctor_id INT REFERENCES doctors(doctor_id),
-    service_name VARCHAR(200) NOT NULL,
-    service_cost DECIMAL NOT NULL,
-    service_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
+CREATE TABLE appointment (
+    appointment_id SERIAL PRIMARY KEY,
+    patient_id INT REFERENCES patient(patient_id),
+    doctor_id INT REFERENCES doctor(doctor_id),
+    appointment_date DATE NOT NULL
+);
 -- 4. ОҢТАЙЛАНДЫРУ (Индекстер)
 
 -- Жұмыс өнімділігін арттыру үшін индекстерді қосу
@@ -56,30 +50,42 @@ CREATE INDEX idx_patient_iin ON patients(iin);
 CREATE INDEX idx_service_date ON services(service_date);
 
 -- 5. ТЕСТІЛІК МӘЛІМЕТТЕР (Test Data)
-INSERT INTO patients VALUES (1, 'Ахметов Ербол', '900510300123', '1990-05-10', 'Алматы');
-INSERT INTO patients VALUES (2, 'Серікова Айгерім', '950822400567', '1995-08-22', 'Астана');
+INSERT INTO patient (first_name, last_name, phone) VALUES
+('Ali', 'Nurgali', '87001234567'),
+('Aida', 'Zhumabek', '87007654321'),
+('Dauren', 'Sagat', '87009876543'),
+('Sara', 'Abil', '87003456789');
 
-INSERT INTO doctors VALUES (1, 'Досболұлы Қанат', 'Терапевт');
-INSERT INTO doctors VALUES (2, 'Смағұлова Гүлнәр', 'Кардиолог');
+INSERT INTO doctor (full_name, specialization) VALUES
+('Dr. Askar Bektay', 'Cardiology'),
+('Dr. Gulnar Kassen', 'Pediatrics'),
+('Dr. Nurlan Yessen', 'Orthopedics');
 
-INSERT INTO insurance VALUES (1, 'POL-001', 1, 500000);
+INSERT INTO insurance (patient_id, policy_number) VALUES
+(1, 'INS-1001'),
+(2, 'INS-1002'),
+(3, 'INS-1003'),
+(4, 'INS-1004');
 
-INSERT INTO services VALUES (101, 1, 1, 'Консультация', 5000);
-INSERT INTO services VALUES (102, 2, 2, 'ЭКГ', 15000);
+INSERT INTO appointment (patient_id, doctor_id, appointment_date) VALUES
+(1, 1, '2026-02-20'),
+(2, 2, '2026-02-21'),
+(3, 1, '2026-02-22'),
+(4, 3, '2026-02-23'),
+(2, 1, '2026-02-24');
 
 -- 6. ТЕСТІЛІК СҰРАНЫСТАР (SQL Queries)
 
--- Бірнеше кестені біріктіру (JOIN)
-SELECT p.full_name, s.service_name, d.doctor_name
-FROM patients p
-JOIN services s ON p.patient_id = s.patient_id
-JOIN doctors d ON s.doctor_id = d.doctor_id;
+-- JOIN – Науқастардың дәрігерлері мен қабылдау күндері
+SELECT p.first_name, p.last_name, d.full_name, a.appointment_date
+FROM appointment a
+JOIN patient p ON a.patient_id = p.patient_id
+JOIN doctor d ON a.doctor_id = d.doctor_id;
+-- GROUP BY – Қай дәрігер қанша пациент қабылдады
+SELECT d.full_name, COUNT(a.appointment_id) AS total
+FROM doctor d
+JOIN appointment a ON d.doctor_id = a.doctor_id
+GROUP BY d.full_name;
 
--- Топтау және агрегаттық функциялар
-SELECT patient_id, SUM(service_cost) AS total_sum
-FROM services
-GROUP BY patient_id
-HAVING SUM(service_cost) > 10000;
-
--- Индекс тиімділігін тексеру
-EXPLAIN ANALYZE SELECT * FROM patients WHERE iin = '900510300123';
+--Агрегат функция – Барлық қабылдау саны
+SELECT COUNT(*) FROM appointment;
