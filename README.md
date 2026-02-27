@@ -1,32 +1,33 @@
 ```mermaid
 erDiagram
-    PATIENTS ||--|| INSURANCE : "has"
-    PATIENTS ||--o{ SERVICES : "receives"
-    DOCTORS ||--o{ SERVICES : "provides"
 
-    PATIENTS {
+    PATIENT {
         int patient_id PK
-        string full_name
-        string iin UK
-        date birth_date
-        string address
+        string first_name
+        string last_name
+        string phone
     }
-    INSURANCE {
-        int policy_id PK
-        string policy_num UK
-        int patient_id FK
-        decimal amount
-    }
-    DOCTORS {
+
+    DOCTOR {
         int doctor_id PK
-        string doctor_name
-        string specialty
+        string full_name
+        string specialization
     }
-    SERVICES {
-        int service_id PK
+
+    INSURANCE {
+        int insurance_id PK
+        int patient_id FK
+        string policy_number
+    }
+
+    APPOINTMENT {
+        int appointment_id PK
         int patient_id FK
         int doctor_id FK
-        string service_name
-        decimal service_cost
-        datetime service_date
+        date appointment_date
     }
+
+    PATIENT ||--o{ INSURANCE : has
+    PATIENT ||--o{ APPOINTMENT : books
+    DOCTOR  ||--o{ APPOINTMENT : conducts
+```
