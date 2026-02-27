@@ -45,9 +45,9 @@ CREATE TABLE appointment (
 );
 -- 4. ОҢТАЙЛАНДЫРУ (Индекстер)
 
--- Жұмыс өнімділігін арттыру үшін индекстерді қосу
-CREATE INDEX idx_patient_iin ON patients(iin);
-CREATE INDEX idx_service_date ON services(service_date);
+CREATE INDEX idx_patient_lastname ON patient(last_name);
+CREATE INDEX idx_appointment_date ON appointment(appointment_date);-- Жұмыс өнімділігін арттыру үшін индекстерді қосу
+
 
 -- 5. ТЕСТІЛІК МӘЛІМЕТТЕР (Test Data)
 INSERT INTO patient (first_name, last_name, phone) VALUES
