@@ -1,0 +1,218 @@
+--1NF (АТОМАРЛЫҚ)
+
+CREATE TABLE patients_1nf (
+    patient_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    iin CHAR(12),
+    phone VARCHAR(20),
+    address TEXT
+);
+
+CREATE TABLE doctors_1nf (
+    doctor_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    specialization VARCHAR(100)
+);
+
+CREATE TABLE services_1nf (
+    service_id SERIAL PRIMARY KEY,
+    service_name VARCHAR(100),
+    price NUMERIC
+);
+
+CREATE TABLE appointments_1nf (
+    appointment_id SERIAL PRIMARY KEY,
+    patient_name VARCHAR(100),
+    doctor_name VARCHAR(100),
+    service_name VARCHAR(100),
+    appointment_date DATE
+);
+
+--2NF (ID ҚОЛДАНУ)
+CREATE TABLE patients (
+    patient_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50)
+);
+
+CREATE TABLE doctors (
+    doctor_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    specialization VARCHAR(100)
+);
+
+CREATE TABLE services (
+    service_id SERIAL PRIMARY KEY,
+    service_name VARCHAR(100),
+    price NUMERIC
+);
+
+
+--3NF (ТРАНЗИТИВТІ ЖОЮ)
+--Сақтандыруды бөлек шығарамыз:
+CREATE TABLE insurance (
+    insurance_id SERIAL PRIMARY KEY,
+    company_name VARCHAR(100),
+    insurance_type VARCHAR(50)
+);
+
+--appointments жаңарту:
+DROP TABLE appointments;
+
+CREATE TABLE appointments (
+    appointment_id SERIAL PRIMARY KEY,
+    patient_id INT REFERENCES patients(patient_id),
+    doctor_id INT REFERENCES doctors(doctor_id),
+    service_id INT REFERENCES services(service_id),
+    insurance_id INT REFERENCES insurance(insurance_id),
+    appointment_date DATE
+);
+
+
+--Пациент қосу
+CREATE OR REPLACE PROCEDURE add_patient(
+    p_fname VARCHAR,
+    p_lname VARCHAR,
+    p_birth DATE,
+    p_phone VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO patients(first_name, last_name, birth_date, phone)
+    VALUES (p_fname, p_lname, p_birth, p_phone);
+END;
+$$;
+
+--Услуга қосу
+CREATE OR REPLACE PROCEDURE add_service(
+    s_name VARCHAR,
+    s_price NUMERIC
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO services(service_name, price)
+    VALUES (s_name, s_price);
+END;
+$$;
+
+
+--Запись жасау
+CREATE OR REPLACE PROCEDURE make_appointment(
+    p_id INT,
+    d_id INT,
+    s_id INT,
+    i_id INT,
+    a_date DATE
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO appointments(patient_id, doctor_id, service_id, insurance_id, appointment_date)
+    VALUES (p_id, d_id, s_id, i_id, a_date);
+END;
+$$;
+
+
+
+--ФУНКЦИЯЛАР
+--Жалпы төлем
+CREATE OR REPLACE FUNCTION total_payment(p_id INT)
+RETURNS NUMERIC AS $$
+DECLARE total NUMERIC;
+BEGIN
+    SELECT SUM(s.price)
+    INTO total
+    FROM appointments a
+    JOIN services s ON a.service_id = s.service_id
+    WHERE a.patient_id = p_id;
+
+    RETURN total;
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+--Пациент саны
+CREATE FUNCTION patient_count()
+RETURNS INT AS $$
+DECLARE cnt INT;
+BEGIN
+    SELECT COUNT(*) INTO cnt FROM patients;
+    RETURN cnt;
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+
+--ТРИГГЕРЛЕР
+--LOG триггер
+CREATE TABLE service_log (
+    log_id SERIAL PRIMARY KEY,
+    action_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT
+);
+
+CREATE OR REPLACE FUNCTION log_service_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO service_log(description)
+    VALUES ('Жаңа қызмет қосылды: ' || NEW.service_name);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_service_insert
+AFTER INSERT ON services
+FOR EACH ROW
+EXECUTE FUNCTION log_service_insert();
+
+
+
+--Проверка (row-level)
+CREATE OR REPLACE FUNCTION check_price()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.price <= 0 THEN
+        RAISE EXCEPTION 'Баға 0-ден үлкен болуы керек!';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_price
+BEFORE INSERT ON services
+FOR EACH ROW
+EXECUTE FUNCTION check_price();
+
+
+--ТРАНЗАКЦИЯЛАР
+
+BEGIN;
+
+INSERT INTO patients(first_name, last_name, birth_date, phone)
+VALUES ('Ali', 'Serik', '2000-01-01', '87770000000');
+
+SAVEPOINT sp1;
+
+INSERT INTO services(service_name, price)
+VALUES ('X-Ray', 5000);
+
+INSERT INTO services(service_name, price)
+VALUES ('Error Service', -100);
+
+ROLLBACK TO sp1;
+
+COMMIT;
+
+--ТЕСТ
+CALL add_patient('Aruzhan', 'Kaliyeva', '2002-05-10', '87001234567');
+
+CALL add_service('MRI', 15000);
+
+SELECT total_payment(1);
