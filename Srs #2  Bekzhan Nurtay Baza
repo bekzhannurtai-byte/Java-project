@@ -1,0 +1,579 @@
+DROP DATABASE IF EXISTS MedicineDB;
+CREATE DATABASE MedicineDB;
+USE MedicineDB;
+
+CREATE TABLE Patients (
+    PatientID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientFirstName VARCHAR(50) NOT NULL,
+    PatientLastName VARCHAR(50) NOT NULL,
+    PatientMiddleName VARCHAR(50),
+    PatientSSN CHAR(12) UNIQUE NOT NULL,
+    PatientBirthDate DATE NOT NULL,
+    PatientPhone VARCHAR(20),
+    PatientEmail VARCHAR(100),
+    PatientAddress TEXT,
+    RegistrationDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    IsActive BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE InsuranceTypes (
+    InsuranceTypeID INT PRIMARY KEY AUTO_INCREMENT,
+    InsuranceTypeName VARCHAR(100) NOT NULL UNIQUE,
+    InsuranceTypeDescription TEXT,
+    DefaultCoveragePercent DECIMAL(5,2) DEFAULT 100.00,
+    IsGovernment BOOLEAN DEFAULT FALSE,
+    priority_level INT DEFAULT 1
+);
+
+CREATE TABLE Insurances (
+    InsuranceID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT NOT NULL,
+    InsuranceTypeID INT NOT NULL,
+    InsuranceNumber VARCHAR(50) UNIQUE NOT NULL,
+    InsuranceCompany VARCHAR(100),
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    CoverageAmount DECIMAL(15,2),
+    MonthlyPayment DECIMAL(10,2),
+    IsActive BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID) ON DELETE CASCADE,
+    FOREIGN KEY (InsuranceTypeID) REFERENCES InsuranceTypes(InsuranceTypeID)
+);
+
+CREATE TABLE Doctors (
+    DoctorID INT PRIMARY KEY AUTO_INCREMENT,
+    DoctorFirstName VARCHAR(50) NOT NULL,
+    DoctorLastName VARCHAR(50) NOT NULL,
+    DoctorMiddleName VARCHAR(50),
+    Specialization VARCHAR(100) NOT NULL,
+    LicenseNumber VARCHAR(50) UNIQUE NOT NULL,
+    ExperienceYears INT DEFAULT 0,
+    Phone VARCHAR(20),
+    Email VARCHAR(100),
+    CabinetNumber VARCHAR(10),
+    ConsultationPrice DECIMAL(10,2),
+    IsActive BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE MedicalServices (
+    ServiceID INT PRIMARY KEY AUTO_INCREMENT,
+    ServiceCode VARCHAR(20) UNIQUE NOT NULL,
+    ServiceName VARCHAR(200) NOT NULL,
+    ServiceCategory VARCHAR(100),
+    BasePrice DECIMAL(10,2) NOT NULL,
+    DurationMinutes INT DEFAULT 30,
+    IsActive BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE Visits (
+    VisitID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT NOT NULL,
+    DoctorID INT NOT NULL,
+    VisitDate DATE NOT NULL,
+    VisitTime TIME NOT NULL,
+    VisitType ENUM('Амбулаторлық', 'Стационарлық', 'Үйге шақыру', 'Кеңес') DEFAULT 'Амбулаторлық',
+    Status ENUM('Жоспарланған', 'Аяқталған', 'Болдырмаған', 'Кейінге қалдырылған') DEFAULT 'Жоспарланған',
+    Complaint TEXT,
+    Diagnosis TEXT,
+    Prescription TEXT,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctors(DoctorID)
+);
+
+CREATE TABLE VisitServices (
+    VisitServiceID INT PRIMARY KEY AUTO_INCREMENT,
+    VisitID INT NOT NULL,
+    ServiceID INT NOT NULL,
+    Quantity INT DEFAULT 1,
+    ActualPrice DECIMAL(10,2) NOT NULL,
+    DiscountPercent DECIMAL(5,2) DEFAULT 0,
+    FOREIGN KEY (VisitID) REFERENCES Visits(VisitID) ON DELETE CASCADE,
+    FOREIGN KEY (ServiceID) REFERENCES MedicalServices(ServiceID)
+);
+
+CREATE TABLE Payments (
+    PaymentID INT PRIMARY KEY AUTO_INCREMENT,
+    VisitID INT NOT NULL,
+    PaymentDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    TotalAmount DECIMAL(12,2) NOT NULL,
+    InsurancePaid DECIMAL(12,2) DEFAULT 0,
+    PatientPaid DECIMAL(12,2) DEFAULT 0,
+    PaymentMethod ENUM('Қолма-қол', 'Карта', 'Аудирум', 'Kaspi') DEFAULT 'Қолма-қол',
+    PaymentStatus ENUM('Төленді', 'Ішінара төленді', 'Төленбеді') DEFAULT 'Төленбеді',
+    FOREIGN KEY (VisitID) REFERENCES Visits(VisitID)
+);
+
+CREATE TABLE AuditLog (
+    LogID INT PRIMARY KEY AUTO_INCREMENT,
+    TableName VARCHAR(50),
+    ActionType VARCHAR(20),
+    RecordID INT,
+    OldData TEXT,
+    NewData TEXT,
+    ChangedBy VARCHAR(100),
+    ChangeDate DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE SystemSettings (
+    SettingID INT PRIMARY KEY AUTO_INCREMENT,
+    SettingKey VARCHAR(100) UNIQUE NOT NULL,
+    SettingValue TEXT,
+    Description TEXT
+);
+
+INSERT INTO InsuranceTypes (InsuranceTypeName, InsuranceTypeDescription, DefaultCoveragePercent, IsGovernment, priority_level) VALUES
+('Міндетті медициналық сақтандыру', 'Мемлекеттік ММС', 85.00, TRUE, 1),
+('Добровольды медициналық сақтандыру', 'Жеке ДМС', 95.00, FALSE, 2),
+('VIP сақтандыру', 'Толық қамту', 100.00, FALSE, 3),
+('Кәсіпорын сақтандыруы', 'Заңды тұлғалар үшін', 90.00, FALSE, 2);
+
+INSERT INTO MedicalServices (ServiceCode, ServiceName, ServiceCategory, BasePrice, DurationMinutes) VALUES
+('CAR001', 'Кардиолог қабылдауы', 'Кардиология', 15000, 30),
+('CAR002', 'ЭКГ', 'Кардиология', 8000, 20),
+('DER001', 'Дерматолог қабылдауы', 'Дерматология', 12000, 30),
+('GEN001', 'Жалпы терапевт қабылдауы', 'Терапия', 10000, 30),
+('LAB001', 'Қан анализі (жалпы)', 'Лаборатория', 5000, 15),
+('LAB002', 'Биохимиялық қан анализі', 'Лаборатория', 12000, 20),
+('NEU001', 'Невролог қабылдауы', 'Неврология', 18000, 40),
+('OPH001', 'Офтальмолог қабылдауы', 'Офтальмология', 13000, 30),
+('XRY001', 'Рентген', 'Рентгенология', 10000, 25),
+('SUR001', 'Хирург кеңесі', 'Хирургия', 20000, 45);
+
+INSERT INTO Patients (PatientFirstName, PatientLastName, PatientMiddleName, PatientSSN, PatientBirthDate, PatientPhone, PatientEmail) VALUES
+('Ержан', 'Әлиев', 'Серікұлы', '860101350123', '1986-01-01', '+77011234567', 'erzhan@mail.com'),
+('Айгүл', 'Оразова', 'Талғатқызы', '901215401234', '1990-12-15', '+77022345678', 'aigul@mail.com'),
+('Бауыржан', 'Смағұлов', 'Нұрланұлы', '750630501234', '1975-06-30', '+77033456789', 'bauyrzhan@mail.com'),
+('Гүлмира', 'Жақсылықова', 'Ерболқызы', '880422451234', '1988-04-22', '+77044567890', 'gulmira@mail.com'),
+('Дамир', 'Төлегенов', 'Маратұлы', '950812351234', '1995-08-12', '+77055678901', 'damir@mail.com'),
+('Жанар', 'Мұқанова', 'Бауыржанқызы', '870311401234', '1987-03-11', '+77066789012', 'zhanar@mail.com');
+
+INSERT INTO Doctors (DoctorFirstName, DoctorLastName, Specialization, LicenseNumber, ExperienceYears, Phone, ConsultationPrice) VALUES
+('Марат', 'Ахметов', 'Кардиолог', 'LIC001', 15, '+77017894561', 15000),
+('Светлана', 'Ким', 'Дерматолог', 'LIC002', 10, '+77027894562', 12000),
+('Руслан', 'Нұрпеисов', 'Невролог', 'LIC003', 20, '+77037894563', 18000),
+('Алия', 'Сұлтанова', 'Терапевт', 'LIC004', 8, '+77047894564', 10000),
+('Ерлан', 'Мұсабеков', 'Хирург', 'LIC005', 12, '+77057894565', 20000);
+
+INSERT INTO Insurances (PatientID, InsuranceTypeID, InsuranceNumber, InsuranceCompany, StartDate, EndDate, CoverageAmount) VALUES
+(1, 1, 'INS001', 'Медициналық Сақтандыру Қоры', '2024-01-01', '2024-12-31', 500000),
+(2, 2, 'INS002', 'Еуразиялық Сақтандыру', '2024-01-01', '2025-01-01', 1000000),
+(3, 1, 'INS003', 'Медициналық Сақтандыру Қоры', '2024-01-01', '2024-12-31', 500000),
+(4, 3, 'INS004', 'VIP Сақтандыру', '2024-01-01', '2026-01-01', 3000000),
+(5, 2, 'INS005', 'Forthmed Сақтандыру', '2024-03-01', '2025-03-01', 750000);
+
+INSERT INTO Visits (PatientID, DoctorID, VisitDate, VisitTime, VisitType, Status, Complaint, Diagnosis) VALUES
+(1, 1, '2026-04-20', '10:00:00', 'Амбулаторлық', 'Аяқталған', 'Жүрек тұсы ауырады', 'Гипертония'),
+(2, 2, '2026-04-21', '11:30:00', 'Амбулаторлық', 'Аяқталған', 'Бөртпе пайда болды', 'Аллергия'),
+(3, 3, '2026-04-22', '09:00:00', 'Кеңес', 'Жоспарланған', 'Бас ауруы', 'Мигрень'),
+(4, 5, '2026-04-23', '14:00:00', 'Стационарлық', 'Жоспарланған', 'Асқазан ауруы', NULL);
+
+INSERT INTO VisitServices (VisitID, ServiceID, Quantity, ActualPrice, DiscountPercent) VALUES
+(1, 1, 1, 15000, 0),
+(1, 2, 1, 8000, 0),
+(2, 3, 1, 12000, 10),
+(3, 7, 1, 18000, 0);
+
+DELIMITER //
+
+CREATE PROCEDURE sp_RegisterPatient(
+    IN p_FirstName VARCHAR(50),
+    IN p_LastName VARCHAR(50),
+    IN p_SSN CHAR(12),
+    IN p_BirthDate DATE,
+    IN p_Phone VARCHAR(20)
+)
+BEGIN
+    INSERT INTO Patients (PatientFirstName, PatientLastName, PatientSSN, PatientBirthDate, PatientPhone)
+    VALUES (p_FirstName, p_LastName, p_SSN, p_BirthDate, p_Phone);
+    
+    SELECT CONCAT('Науқас ', p_FirstName, ' ', p_LastName, ' тіркелді. ID: ', LAST_INSERT_ID()) AS Result;
+END//
+
+CREATE PROCEDURE sp_CreateVisitWithServices(
+    IN p_PatientID INT,
+    IN p_DoctorID INT,
+    IN p_VisitDate DATE,
+    IN p_VisitTime TIME,
+    IN p_ServiceIDs VARCHAR(500),
+    IN p_Quantities VARCHAR(500)
+)
+BEGIN
+    DECLARE v_VisitID INT;
+    DECLARE v_TotalAmount DECIMAL(12,2);
+    DECLARE v_InsuranceCoverage DECIMAL(5,2);
+    DECLARE v_InsurancePaid DECIMAL(12,2);
+    DECLARE v_PatientPaid DECIMAL(12,2);
+    DECLARE v_ServiceID INT;
+    DECLARE v_Quantity INT;
+    DECLARE v_Price DECIMAL(10,2);
+    DECLARE v_Pos INT;
+    DECLARE v_ServicePos INT;
+    DECLARE v_Done INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SELECT 'Қате: Келу жасалмады. Транзакция кері қайтарылды.' AS ErrorMessage;
+    END;
+    
+    START TRANSACTION;
+    
+    SELECT DefaultCoveragePercent INTO v_InsuranceCoverage
+    FROM Insurances i
+    JOIN InsuranceTypes it ON i.InsuranceTypeID = it.InsuranceTypeID
+    WHERE i.PatientID = p_PatientID AND i.IsActive = TRUE AND CURDATE() BETWEEN i.StartDate AND i.EndDate
+    LIMIT 1;
+    
+    IF v_InsuranceCoverage IS NULL THEN
+        SET v_InsuranceCoverage = 0;
+    END IF;
+    
+    INSERT INTO Visits (PatientID, DoctorID, VisitDate, VisitTime, Status)
+    VALUES (p_PatientID, p_DoctorID, p_VisitDate, p_VisitTime, 'Жоспарланған');
+    
+    SET v_VisitID = LAST_INSERT_ID();
+    SET v_TotalAmount = 0;
+    
+    WHILE p_ServiceIDs != '' AND p_Quantities != '' AND v_Done = 0 DO
+        SET v_Pos = LOCATE(',', p_ServiceIDs);
+        IF v_Pos = 0 THEN
+            SET v_ServiceID = CAST(p_ServiceIDs AS UNSIGNED);
+            SET v_Quantity = CAST(p_Quantities AS UNSIGNED);
+            SET v_Done = 1;
+        ELSE
+            SET v_ServiceID = CAST(SUBSTRING(p_ServiceIDs, 1, v_Pos - 1) AS UNSIGNED);
+            SET v_Quantity = CAST(SUBSTRING(p_Quantities, 1, LOCATE(',', p_Quantities) - 1) AS UNSIGNED);
+            SET p_ServiceIDs = SUBSTRING(p_ServiceIDs, v_Pos + 1);
+            SET p_Quantities = SUBSTRING(p_Quantities, LOCATE(',', p_Quantities) + 1);
+        END IF;
+        
+        SELECT BasePrice INTO v_Price FROM MedicalServices WHERE ServiceID = v_ServiceID;
+        
+        INSERT INTO VisitServices (VisitID, ServiceID, Quantity, ActualPrice)
+        VALUES (v_VisitID, v_ServiceID, v_Quantity, v_Price);
+        
+        SET v_TotalAmount = v_TotalAmount + (v_Price * v_Quantity);
+    END WHILE;
+    
+    SET v_InsurancePaid = v_TotalAmount * (v_InsuranceCoverage / 100);
+    SET v_PatientPaid = v_TotalAmount - v_InsurancePaid;
+    
+    INSERT INTO Payments (VisitID, TotalAmount, InsurancePaid, PatientPaid, PaymentStatus)
+    VALUES (v_VisitID, v_TotalAmount, v_InsurancePaid, v_PatientPaid, 'Төленбеді');
+    
+    COMMIT;
+    
+    SELECT CONCAT('Келу жасалды. ID: ', v_VisitID, ', Жалпы сома: ', v_TotalAmount, 
+                  ', Сақтандыру төледі: ', v_InsurancePaid, ', Науқас төлейді: ', v_PatientPaid) AS Result;
+END//
+
+CREATE PROCEDURE sp_UpdateVisitStatus(
+    IN p_VisitID INT,
+    IN p_NewStatus ENUM('Жоспарланған', 'Аяқталған', 'Болдырмаған', 'Кейінге қалдырылған')
+)
+BEGIN
+    DECLARE v_OldStatus VARCHAR(20);
+    
+    SELECT Status INTO v_OldStatus FROM Visits WHERE VisitID = p_VisitID;
+    
+    UPDATE Visits SET Status = p_NewStatus WHERE VisitID = p_VisitID;
+    
+    INSERT INTO AuditLog (TableName, ActionType, RecordID, OldData, NewData, ChangedBy)
+    VALUES ('Visits', 'STATUS_UPDATE', p_VisitID, 
+            CONCAT('{"status":"', v_OldStatus, '"}'),
+            CONCAT('{"status":"', p_NewStatus, '"}'),
+            CURRENT_USER());
+    
+    SELECT CONCAT('Visit ', p_VisitID, ' статусы ', v_OldStatus, ' -> ', p_NewStatus, ' өзгертілді') AS Result;
+END//
+
+CREATE PROCEDURE sp_ProcessPayment(
+    IN p_VisitID INT,
+    IN p_PaymentAmount DECIMAL(12,2),
+    IN p_PaymentMethod ENUM('Қолма-қол', 'Карта', 'Аудирум', 'Kaspi')
+)
+BEGIN
+    DECLARE v_PatientPaid DECIMAL(12,2);
+    DECLARE v_Remaining DECIMAL(12,2);
+    
+    START TRANSACTION;
+    
+    SELECT PatientPaid INTO v_PatientPaid FROM Payments WHERE VisitID = p_VisitID;
+    
+    SET v_Remaining = v_PatientPaid - p_PaymentAmount;
+    
+    IF v_Remaining <= 0 THEN
+        UPDATE Payments 
+        SET PatientPaid = 0, 
+            PaymentMethod = p_PaymentMethod,
+            PaymentStatus = 'Төленді',
+            PaymentDate = NOW()
+        WHERE VisitID = p_VisitID;
+    ELSE
+        UPDATE Payments 
+        SET PatientPaid = v_Remaining,
+            PaymentMethod = p_PaymentMethod,
+            PaymentStatus = 'Ішінара төленді',
+            PaymentDate = NOW()
+        WHERE VisitID = p_VisitID;
+    END IF;
+    
+    COMMIT;
+    
+    SELECT CONCAT('Төлем қабылданды. Қалған сома: ', GREATEST(v_Remaining, 0)) AS Result;
+END//
+
+CREATE PROCEDURE sp_GetPatientFinancialReport(IN p_PatientID INT)
+BEGIN
+    SELECT 
+        p.PatientLastName AS Науқас_Тегі,
+        p.PatientFirstName AS Науқас_Аты,
+        COUNT(DISTINCT v.VisitID) AS Келу_саны,
+        SUM(pay.TotalAmount) AS Жалпы_сома,
+        SUM(pay.InsurancePaid) AS Сақтандыру_төлемі,
+        SUM(pay.PatientPaid) AS Науқас_төлемі,
+        CASE 
+            WHEN SUM(pay.PatientPaid) = 0 THEN 'Толық төленді'
+            WHEN SUM(pay.PatientPaid) > 0 AND SUM(pay.PatientPaid) < SUM(pay.TotalAmount) THEN 'Ішінара төленді'
+            ELSE 'Төленбеді'
+        END AS Қаржылық_жағдай
+    FROM Patients p
+    LEFT JOIN Visits v ON p.PatientID = v.PatientID
+    LEFT JOIN Payments pay ON v.VisitID = pay.VisitID
+    WHERE p.PatientID = p_PatientID
+    GROUP BY p.PatientID;
+END//
+
+CREATE PROCEDURE sp_GetDoctorPerformance(IN p_DoctorID INT, IN p_StartDate DATE, IN p_EndDate DATE)
+BEGIN
+    SELECT 
+        d.DoctorLastName AS Дәрігер_Тегі,
+        d.DoctorFirstName AS Дәрігер_Аты,
+        d.Specialization AS Мамандығы,
+        COUNT(DISTINCT v.VisitID) AS Қабылдау_саны,
+        COUNT(DISTINCT v.PatientID) AS Науқас_саны,
+        SUM(pay.TotalAmount) AS Жалпы_табыс,
+        SUM(pay.InsurancePaid) AS Сақтандыру_арқылы,
+        SUM(pay.PatientPaid) AS Науқас_арқылы,
+        AVG(pay.TotalAmount) AS Орташа_келу_сомасы
+    FROM Doctors d
+    LEFT JOIN Visits v ON d.DoctorID = v.DoctorID AND v.VisitDate BETWEEN p_StartDate AND p_EndDate
+    LEFT JOIN Payments pay ON v.VisitID = pay.VisitID
+    WHERE d.DoctorID = p_DoctorID OR p_DoctorID IS NULL
+    GROUP BY d.DoctorID;
+END//
+
+CREATE FUNCTION fn_GetPatientAge(p_PatientID INT) RETURNS INT DETERMINISTIC
+BEGIN
+    DECLARE v_Age INT;
+    SELECT TIMESTAMPDIFF(YEAR, PatientBirthDate, CURDATE()) INTO v_Age
+    FROM Patients WHERE PatientID = p_PatientID;
+    RETURN v_Age;
+END//
+
+CREATE FUNCTION fn_GetTotalPaidByPatient(p_PatientID INT) RETURNS DECIMAL(15,2) DETERMINISTIC
+BEGIN
+    DECLARE v_Total DECIMAL(15,2);
+    SELECT COALESCE(SUM(PatientPaid), 0) INTO v_Total
+    FROM Payments pay
+    JOIN Visits v ON pay.VisitID = v.VisitID
+    WHERE v.PatientID = p_PatientID;
+    RETURN v_Total;
+END//
+
+CREATE FUNCTION fn_GetInsuranceValidity(p_InsuranceID INT) RETURNS VARCHAR(50) DETERMINISTIC
+BEGIN
+    DECLARE v_EndDate DATE;
+    DECLARE v_Result VARCHAR(50);
+    
+    SELECT EndDate INTO v_EndDate FROM Insurances WHERE InsuranceID = p_InsuranceID;
+    
+    IF v_EndDate < CURDATE() THEN
+        SET v_Result = 'Мерзімі өткен';
+    ELSEIF v_EndDate < DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN
+        SET v_Result = 'Жақында мерзімі аяқталады';
+    ELSE
+        SET v_Result = 'Жарамды';
+    END IF;
+    
+    RETURN v_Result;
+END//
+
+CREATE FUNCTION fn_CalculateDiscountPrice(p_Price DECIMAL(10,2), p_DiscountPercent DECIMAL(5,2)) 
+RETURNS DECIMAL(10,2) DETERMINISTIC
+BEGIN
+    RETURN p_Price * (1 - p_DiscountPercent / 100);
+END//
+
+CREATE TRIGGER trg_BeforeInsertVisit
+BEFORE INSERT ON Visits
+FOR EACH ROW
+BEGIN
+    DECLARE v_DoctorWorkStart TIME;
+    DECLARE v_DoctorWorkEnd TIME;
+    
+    SELECT WorkStartTime, WorkEndTime INTO v_DoctorWorkStart, v_DoctorWorkEnd
+    FROM Doctors WHERE DoctorID = NEW.DoctorID;
+    
+    IF v_DoctorWorkStart IS NOT NULL AND v_DoctorWorkEnd IS NOT NULL THEN
+        IF NEW.VisitTime < v_DoctorWorkStart OR NEW.VisitTime > v_DoctorWorkEnd THEN
+            SIGNAL SQLSTATE '45000' 
+            SET MESSAGE_TEXT = 'Дәрігердің жұмыс уақытынан тыс келу жасауға болмайды';
+        END IF;
+    END IF;
+    
+    IF EXISTS (
+        SELECT 1 FROM Visits 
+        WHERE DoctorID = NEW.DoctorID 
+        AND VisitDate = NEW.VisitDate 
+        AND VisitTime = NEW.VisitTime
+        AND Status != 'Болдырмаған'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Бұл уақытта дәрігерде келу бар';
+    END IF;
+END//
+
+CREATE TRIGGER trg_AfterUpdatePatient
+AFTER UPDATE ON Patients
+FOR EACH ROW
+BEGIN
+    IF OLD.PatientPhone != NEW.PatientPhone OR OLD.PatientAddress != NEW.PatientAddress THEN
+        INSERT INTO AuditLog (TableName, ActionType, RecordID, OldData, NewData, ChangedBy)
+        VALUES ('Patients', 'UPDATE', NEW.PatientID,
+                CONCAT('{"phone":"', OLD.PatientPhone, '","address":"', OLD.PatientAddress, '"}'),
+                CONCAT('{"phone":"', NEW.PatientPhone, '","address":"', NEW.PatientAddress, '"}'),
+                CURRENT_USER());
+    END IF;
+END//
+
+CREATE TRIGGER trg_InsteadOfDeleteInsurance
+INSTEAD OF DELETE ON Insurances
+FOR EACH ROW
+BEGIN
+    UPDATE Insurances 
+    SET IsActive = FALSE, 
+        EndDate = CURDATE()
+    WHERE InsuranceID = OLD.InsuranceID;
+    
+    INSERT INTO AuditLog (TableName, ActionType, RecordID, OldData, NewData, ChangedBy)
+    VALUES ('Insurances', 'SOFT_DELETE', OLD.InsuranceID,
+            CONCAT('{"insuranceNumber":"', OLD.InsuranceNumber, '"}'),
+            CONCAT('{"isActive":false, "endDate":"', CURDATE(), '"}'),
+            CURRENT_USER());
+END//
+
+CREATE TRIGGER trg_AfterInsertPayment
+AFTER INSERT ON Payments
+FOR EACH ROW
+BEGIN
+    UPDATE Visits 
+    SET Status = 'Аяқталған'
+    WHERE VisitID = NEW.VisitID AND NEW.PaymentStatus = 'Төленді';
+END//
+
+CREATE EVENT IF NOT EXISTS evt_CheckExpiredInsurances
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    INSERT INTO AuditLog (TableName, ActionType, RecordID, OldData, NewData, ChangedBy)
+    SELECT 'Insurances', 'EXPIRED_CHECK', InsuranceID,
+           CONCAT('{"endDate":"', EndDate, '"}'),
+           CONCAT('{"isActive":', IF(EndDate < CURDATE(), 'false', 'true'), '}'),
+           'SYSTEM'
+    FROM Insurances
+    WHERE EndDate < CURDATE() AND IsActive = TRUE;
+    
+    UPDATE Insurances 
+    SET IsActive = FALSE 
+    WHERE EndDate < CURDATE() AND IsActive = TRUE;
+END//
+
+DELIMITER ;
+
+START TRANSACTION;
+
+INSERT INTO Visits (PatientID, DoctorID, VisitDate, VisitTime, Status) VALUES (2, 4, '2026-04-25', '15:00:00', 'Жоспарланған');
+
+SET @visit_id = LAST_INSERT_ID();
+
+INSERT INTO VisitServices (VisitID, ServiceID, Quantity, ActualPrice) VALUES (@visit_id, 4, 1, 10000);
+INSERT INTO VisitServices (VisitID, ServiceID, Quantity, ActualPrice) VALUES (@visit_id, 5, 1, 5000);
+
+INSERT INTO Payments (VisitID, TotalAmount, InsurancePaid, PatientPaid, PaymentStatus) 
+VALUES (@visit_id, 15000, 12750, 2250, 'Төленбеді');
+
+COMMIT;
+
+START TRANSACTION;
+
+SAVEPOINT before_payment_update;
+
+UPDATE Payments SET PatientPaid = 1000 WHERE VisitID = 1;
+
+SAVEPOINT after_partial_payment;
+
+UPDATE Payments SET PaymentStatus = 'Ішінара төленді' WHERE VisitID = 1;
+
+RELEASE SAVEPOINT after_partial_payment;
+
+COMMIT;
+
+START TRANSACTION;
+
+SAVEPOINT before_service_add;
+
+INSERT INTO MedicalServices (ServiceCode, ServiceName, ServiceCategory, BasePrice) 
+VALUES ('NEW001', 'Жаңа медициналық қызмет', 'Жаңа категория', 25000);
+
+ROLLBACK TO SAVEPOINT before_service_add;
+
+COMMIT;
+
+CALL sp_RegisterPatient('Нұрлан', 'Қайырбеков', '900101350987', '1990-01-01', '+77077778899');
+
+CALL sp_CreateVisitWithServices(1, 1, '2026-04-25', '09:00:00', '1,2', '1,1');
+
+CALL sp_UpdateVisitStatus(3, 'Аяқталған');
+
+CALL sp_ProcessPayment(1, 2250, 'Kaspi');
+
+SELECT fn_GetPatientAge(1) AS Науқас_Жасы;
+
+SELECT fn_GetTotalPaidByPatient(1) AS Жалпы_Төлем;
+
+SELECT fn_GetInsuranceValidity(1) AS Сақтандыру_Жарамдылығы;
+
+SELECT fn_CalculateDiscountPrice(15000, 10) AS Жеңілдік_Бағасы;
+
+CALL sp_GetPatientFinancialReport(1);
+
+CALL sp_GetDoctorPerformance(NULL, '2026-04-01', '2026-04-30');
+
+SELECT * FROM Patients;
+SELECT * FROM Doctors;
+SELECT * FROM MedicalServices;
+SELECT * FROM Visits;
+SELECT * FROM VisitServices;
+SELECT * FROM Payments;
+SELECT * FROM Insurances;
+SELECT * FROM InsuranceTypes;
+SELECT * FROM AuditLog;
+
+DELETE FROM Insurances WHERE InsuranceID = 5;
+
+SELECT * FROM Insurances WHERE InsuranceID = 5;
+
+SELECT 
+    v.VisitID,
+    p.PatientLastName,
+    d.DoctorLastName,
+    v.VisitDate,
+    pay.TotalAmount,
+    pay.PaymentStatus
+FROM Visits v
+JOIN Patients p ON v.PatientID = p.PatientID
+JOIN Doctors d ON v.DoctorID = d.DoctorID
+JOIN Payments pay ON v.VisitID = pay.VisitID
+ORDER BY v.VisitDate DESC;
